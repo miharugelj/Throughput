@@ -37,7 +37,7 @@ setup(name='Throughput',
       description="Testing network performance using speedtest.net or custom download and upload servers",
       long_description=long_description,
       license="GPL3",
-      url="GITHUB",
+      url="https://github.com/miharugelj/Throughput",
 
       classifiers=[
           "Development Status :: 5 - Production/Stable",

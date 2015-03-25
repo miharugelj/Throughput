@@ -31,7 +31,7 @@ speedtest-cli_ by Matt Martz.
 Version
 -------
 
-Library works with Python 2.4-2.7.9. Current version is 0.1.
+Library works with Python 2.4-2.7.9. Current version is **0.1**.
 
 
 Requirements
@@ -84,7 +84,7 @@ Download
 
 ::
 
-    wget https://github.com/miharugelj/Throughput/master/dist/Throughput-X.X.tar
+    wget https://github.com/miharugelj/Throughput/raw/master/dist/Throughput-X.X.tar
     tar xvf Throughput-X.X.tar
     python setup.py install
 
@@ -92,10 +92,10 @@ or
 
 ::
 
-    wget https://github.com/miharugelj/Throughput/master/dist/Throughput-X.X.tar
+    wget https://github.com/miharugelj/Throughput/raw/master/dist/Throughput-X.X.tar
     pip install Throughput-X.X.tar
 
-Replace X.X with the current version of the package.
+Replace **X.X** with the current version of the package.
 
 Github
 ~~~~~~
