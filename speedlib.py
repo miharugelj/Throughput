@@ -241,6 +241,7 @@ class Throughput:
         buf = StringIO()
         curl = pycurl.Curl()
         curl.setopt(pycurl.URL, url)
+        curl.setopt(pycurl.NOSIGNAL, 1)
         curl.setopt(pycurl.CONNECTTIMEOUT, 5)
         curl.setopt(pycurl.TIMEOUT, 10)
         curl.setopt(pycurl.FAILONERROR, True)
@@ -302,6 +303,7 @@ class Throughput:
             self.end_thread_time = end_thread_time
             self.buf = StringIO()
             self.curl = pycurl.Curl()
+            self.curl.setopt(pycurl.NOSIGNAL, 1)
             self.curl.setopt(pycurl.URL, self.url)
             self.curl.setopt(pycurl.CONNECTTIMEOUT, 5)
             self.curl.setopt(pycurl.TIMEOUT, self.end_thread_time)
@@ -398,6 +400,7 @@ class Throughput:
             self.buf = StringIO()
             self.curl = pycurl.Curl()
             self.curl.setopt(pycurl.URL, self.url)
+            self.curl.setopt(pycurl.NOSIGNAL, 1)
             self.curl.setopt(pycurl.CONNECTTIMEOUT, 5)
             self.curl.setopt(pycurl.TIMEOUT, self.end_thread_time)
             self.curl.setopt(pycurl.FAILONERROR, True)
