@@ -1,0 +1,85 @@
+#!/usr/bin/perl -w
+use File::Temp;
+use Data::Dumper; #debug only
+#Usage: ln -s throughput_ throughput_<server-id>
+
+
+#Server: Slovenia, Maribor, Amis, (id=3532)
+#Server: Slovenia, Maribor, Telemach Rotovz d.d., (id=2034)
+#Server: Slovenia, Ljubljana, Si.mobil d.d., (id=2198)
+#Server: Slovenia, Ljubljana, Telekom Slovenije, d.d., (id=3560)
+#Server: Slovenia, Ljubljana, SGH d.o.o., (id=1706)
+#Server: Slovenia, Idrija, freeNET d.o.o., (id=2847)
+
+#set to 0 for munin run
+my $debug=0;
+
+###Define where Througput.py is:
+#my $throughput="Throughput.py"; #in $PATH
+my $throughput="/home/mulaz/git/Throughput/Throughput.py"; #custom path
+
+
+#measurement parameters
+my $threads=3; #number of parallel threads
+my $runtime=3; #measurement time
+
+
+####----end of user configuration----####
+#getting serverid from filename
+$0 =~ /throughput_(.+)*$/;
+my $serverid = $1;
+exit 2 unless defined $serverid;
+
+
+
+#munin config output
+if ($ARGV[0] && $ARGV[0] eq "config") {
+    my $servername;
+    my $serverlist=`$throughput -L`;
+    if($serverlist=~/Server: ([^\n]+?), \(id=$serverid\)/) {
+	$servername=$1;
+	print "servername: $servername \n" if $debug;
+    }
+    else {die "server name not found\n"; }
+
+
+print "graph_title Throughput speed - $servername
+graph_vtitle Mbit/s
+graph_args --base 1000 -l 0
+upload.label Upload speed
+download.label Download speed
+";
+
+  exit;
+}
+
+
+
+
+
+print "Server id: $serverid measurement time: $runtime, threads: $threads\n" if $debug;
+
+#create temporary file - will be deleted
+$fh = File::Temp->new();
+$filename =$fh->filename;
+
+#run measurement
+my $command = "$throughput -i $serverid -P $threads -t $runtime -f $filename";
+print "command to run: $command\n" if $debug;
+my $output = `$command`;
+print "output:\n\n$output\n\n" if $debug;
+
+#get output file 
+my $fileoutput= do { local $/; <$fh> };
+print "File output: \n\n $fileoutput \n\n" if $debug;
+my @results=split(',',$fileoutput);
+print Dumper(@results) if $debug;
+
+my $datetime=$results[0];
+my $dlspeed=$results[7];
+my $ulspeed=$results[8];
+chomp($ulspeed); #remove trailing newline
+
+
+print "upload.value $ulspeed\n";
+print "download.value $dlspeed\n";
