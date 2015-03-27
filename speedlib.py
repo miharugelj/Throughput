@@ -481,7 +481,7 @@ class Throughput:
         Write results to .csv file
         """
 
-        outputFile = self.outputFile+'.csv'
+        outputFile = self.outputFile
         file_exists = False
 
         if os.path.isfile(outputFile):

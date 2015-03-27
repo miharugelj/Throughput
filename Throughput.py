@@ -141,7 +141,7 @@ def test(throughput):
 
 
     if throughput.outputFile is not None:
-        print("Writing results to file: %s" % throughput.outputFile+'.csv')
+        print("Writing results to file: %s" % throughput.outputFile)
         throughput.writeResults(results)
 
 
