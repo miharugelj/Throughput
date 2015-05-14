@@ -116,16 +116,18 @@ Usage
 
     Options:
       -h, --help            show this help message and exit
-      -i ID, --id=ID        speedtest.net server id
       -d DL, --download=DL  custom download server URL
-      -u UL, --upload=UL    custom upload server URL
+      -f FILE, --file=FILE  output file to store results
+      -i ID, --id=ID        speedtest.net server id
       -L, --list            list speedtest.net server id
+      -n, --no-upload-results
+                            do not upload results
+      -P THREADS, --parallel=THREADS
+                             number of parallel threads to run (default 3)
       -t TIME, --timeout=TIME
                             max time in seconds for download and upload
                             measurements (default 20 secs)
-      -P THREADS, --parallel=THREADS
-                             number of parallel threads to run (default 3)
-      -f FILE, --file=FILE  output file to store results
+      -u UL, --upload=UL    custom upload server URL
       -v, --version         show version number and exit
 
 

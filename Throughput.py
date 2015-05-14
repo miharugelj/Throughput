@@ -166,9 +166,10 @@ def test(throughput):
 
 
     # Get config parameters
-    if platform.system() == 'Linux' or platform.system() == 'Darwin':
+    os_name = platform.system()
+    if os_name in ['Linux', 'Darwin']:
         path = '/opt/.throughput'
-    elif platform.system() == 'Windows':
+    elif os_name in ['Windows'] or os_name.find('CYGWIN') != -1:
         path = r'C:\.throughput'
 
     if not os.path.exists(path+os.sep+'config'):
