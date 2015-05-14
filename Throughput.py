@@ -18,8 +18,15 @@
 
 import os
 import sys
+import hashlib
+import random
+import platform
+import urllib2
+from datetime import datetime
 from urlparse import urlparse
+from urllib import urlencode
 from optparse import OptionParser
+from ConfigParser import ConfigParser
 
 try:
     import pycurl
@@ -29,7 +36,7 @@ except ImportError:
 import speedlib
 
 
-__version__ = '0.1'
+__version__ = '0.2'
 
 
 def test(throughput):
@@ -46,6 +53,12 @@ def test(throughput):
         print('Retrieving speedtest.net server info ...')
         serverInfo = throughput.getServersInfo()
 
+        # TMP
+        #serverInfo = {'name': 'Ljubljana', 'url': 'http://speedtest.simobil.si/speedtest/upload.php',
+        #              'country': 'Slovenia', 'lon': '14.5000', 'cc': 'SI', 'host': 'speedtest.simobil.si:8080',
+        #              'sponsor': 'Si.mobil d.d.', 'url2': 'http://speedtest1.simobil.si/speedtest/upload.php',
+        #              'lat': '46.0500', 'id': '2198'}
+
         if serverInfo is None:
             print('Cannot retrieve speedtest.net server info. Try again later.')
             sys.exit(1)
@@ -55,27 +68,29 @@ def test(throughput):
         serverInfo['dl_url'] = serverInfo['url']
         serverInfo['ul_url'] = serverInfo['url']
 
-        results['dl_url'] = serverInfo['dl_url']
-        results['ul_url'] = serverInfo['ul_url']
-
-        # TMP
-        #serverInfo = {'name': 'Ljubljana', 'url': 'http://speedtest.simobil.si/speedtest/upload.php', 'country': 'Slovenia', 'lon': '14.5000', 'cc': 'SI', 'host': 'speedtest.simobil.si:8080', 'sponsor': 'Si.mobil d.d.', 'url2': 'http://speedtest1.simobil.si/speedtest/upload.php', 'lat': '46.0500', 'id': '2198'}
-        #results['dl_url'] = serverInfo['url']
-        #results['ul_url'] = serverInfo['url']
-
-
     elif throughput.dl is not None and throughput.ul is not None:
         # Perform download and upload test using custom servers
 
         serverInfo['dl_url'] = throughput.dl
         serverInfo['ul_url'] = throughput.ul
 
-        results['dl_url'] = serverInfo['dl_url']
-        results['ul_url'] = serverInfo['ul_url']
-
         print('Using DL server: %s' % serverInfo['dl_url'])
         print('Using UL server: %s' % serverInfo['ul_url'])
 
+    # DL/UL hostname
+    results['dl_hostname'] = urlparse(serverInfo['dl_url']).netloc
+    results['ul_hostname'] = urlparse(serverInfo['ul_url']).netloc
+
+
+    # Get client info
+    clientInfo = throughput.getClientInfo()
+
+    if clientInfo is not None:
+        results.update(clientInfo)
+
+
+    # Timestamp
+    results['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     print('\nTest server latency ...')
     percent_lost = None
@@ -91,15 +106,19 @@ def test(throughput):
         percent_lost = 100
 
     rtts = {'percent_lost': percent_lost,
-                   'max_rtt': max_rtt,
-                   'min_rtt': min_rtt,
-                   'avg_rtt': avg_rtt}
+            'max_rtt_ms': max_rtt,
+            'min_rtt_ms': min_rtt,
+            'avg_rtt_ms': avg_rtt}
 
-    if rtts['avg_rtt'] is not None:
-        print ('Ping RTT: %(avg_rtt)0.3fms (max=%(max_rtt)0.3fms, min=%(min_rtt)0.3fms, lost=%(percent_lost)1d%%)' % rtts)
+    if rtts['avg_rtt_ms'] is not None:
+        rtts['min_rtt_ms'] = round(rtts['min_rtt_ms'], 2)
+        rtts['avg_rtt_ms'] = round(rtts['avg_rtt_ms'], 2)
+        rtts['max_rtt_ms'] = round(rtts['max_rtt_ms'], 2)
+        print ('Ping RTT: %(avg_rtt_ms)0.2fms (max=%(max_rtt_ms)0.2fms, min=%(min_rtt_ms)0.2fms, '
+               'lost=%(percent_lost)1d%%)' % rtts)
     else:
-        print ('Ping RTT: %(avg_rtt)s' % rtts)
-    results['RTT'] = rtts
+        print ('Ping RTT: %(avg_rtt_ms)s' % rtts)
+    results.update(rtts)
 
 
     sizes = [1000, 1500, 2000, 2500, 3000, 3500, 4000]
@@ -115,7 +134,7 @@ def test(throughput):
         dl_speed = None
 
     if dl_speed is not None:
-        results['dl_speed'] = dl_speed
+        results['dl_speed_kbps'] = round(dl_speed/1000, 3)
         print("\nDownload speed: %0.3f Mbit/s: " % (dl_speed/1000000))
     else:
         print("\nDownload speed: %s: " % dl_speed)
@@ -134,15 +153,63 @@ def test(throughput):
         ul_speed = None
 
     if ul_speed is not None:
-        results['ul_speed'] = ul_speed
+        results['ul_speed_kbps'] = round(ul_speed/1000, 3)
         print("\nUpload speed: %0.3f Mbit/s: " % (ul_speed/1000000))
     else:
         print("\nUpload speed: %s: " % ul_speed)
 
 
+    # Write results to file
     if throughput.outputFile is not None:
         print("Writing results to file: %s" % throughput.outputFile)
         throughput.writeResults(results)
+
+
+    # Get config parameters
+    if platform.system() == 'Linux' or platform.system() == 'Darwin':
+        path = '/opt/.throughput'
+    elif platform.system() == 'Windows':
+        path = r'C:\.throughput'
+
+    if not os.path.exists(path+os.sep+'config'):
+        try:
+            os.mkdir(path)
+        except IOError:
+            pass
+
+        config = ConfigParser()
+        config.add_section('GENERAL')
+        config.add_section('SERVER')
+
+        hash = hashlib.sha1(datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f") + str(random.random())).hexdigest()
+        server_ip = '212.101.137.10'
+        config.set('GENERAL', 'hash', hash)
+        config.set('SERVER', 'ip', server_ip)
+
+        with open(path+os.sep+'config', 'w') as file:
+            config.write(file)
+
+    else:
+        config = ConfigParser()
+        config.read(path+os.sep+'config')
+
+        hash = config.get('GENERAL', 'hash')
+        server_ip = config.get('SERVER', 'ip')
+
+    results['hash'] = hash
+
+
+    # HTTP GET results
+    if throughput.noUploadResults is not True:
+        data = urlencode(results)
+        try:
+            req = urllib2.Request('http://'+server_ip+'/getdata/?'+data)
+            response = urllib2.urlopen(req)
+            page = response.read()
+
+            print page
+        except urllib2.URLError:
+            pass
 
 
 
@@ -155,14 +222,17 @@ def main():
         # Parse args
         usage = "Usage: %prog -i <speedtest.net server id> | -d <DL server URL> & -u <UL server URL> [options]"
         parser = OptionParser(usage=usage)
-        parser.add_option("-i", "--id", action="store", dest="id", help="speedtest.net server id")
         parser.add_option("-d", "--download", action="store", dest="dl", help="custom download server URL")
-        parser.add_option("-u", "--upload", action="store", dest="ul", help="custom upload server URL")
+        parser.add_option("-f", "--file", action="store", dest="file", help="output file to store results")
+        parser.add_option("-i", "--id", action="store", dest="id", help="speedtest.net server id")
         parser.add_option("-L", "--list", action="store_true", dest="list", help="list speedtest.net server id")
+        parser.add_option("-n", "--no-upload-results", action="store_true", dest="noUploadResults",
+                          help="do not upload results")
+        parser.add_option("-P", "--parallel", action="store", type=int, default=3, dest="threads",
+                          help=" number of parallel threads to run (default 3)")
         parser.add_option("-t", "--timeout", action="store", type=int, default=20, dest="time",
                           help="max time in seconds for download and upload measurements (default 20 secs)")
-        parser.add_option("-P", "--parallel", action="store", type=int, default=3, dest="threads", help=" number of parallel threads to run (default 3)")
-        parser.add_option("-f", "--file", action="store", dest="file", help="output file to store results")
+        parser.add_option("-u", "--upload", action="store", dest="ul", help="custom upload server URL")
         parser.add_option("-v", "--version", action="store_true", dest="version", help="show version number and exit")
         (options, args) = parser.parse_args()
 
@@ -189,7 +259,8 @@ def main():
             sys.exit(1)
 
         # Start measurements
-        throughput = speedlib.Throughput(options.id, options.dl, options.ul, options.threads, options.time, options.file)
+        throughput = speedlib.Throughput(options.id, options.dl, options.ul, options.threads, options.time,
+                                         options.file, options.noUploadResults)
         test(throughput)
 
     except KeyboardInterrupt:

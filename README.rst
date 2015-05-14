@@ -31,7 +31,7 @@ speedtest-cli_ by Matt Martz.
 Version
 -------
 
-Library works with Python 2.4-2.7.9. Current version is **0.1**.
+Library works with Python 2.4-2.7.9. Current version is **0.2**.
 
 
 Requirements
@@ -144,9 +144,8 @@ Just put the following files to the HTTP server:
 - random4000x4000.jpg
 
 
-You can download these files from here_.
+You can find these files in **custom-server** folder.
 
-.. _here: http://212.235.185.9/files/
 
 Use:
 
@@ -163,13 +162,13 @@ Add the following line to crontab for periodic measurements at every hour:
 
 ::
 
-    0 * * * * python /usr/local/bin/Throughput.py -i <speedtest.net server id> -f <path>/results
+    0 * * * * python /usr/local/bin/Throughput.py -i <speedtest.net server id> -f <path>/results.csv
 
 or
 
 ::
 
-    0 * * * * python /usr/local/bin/Throughput.py  -d http://x.x.x.x/files/ -u http://x.x.x.x -f <path>/results
+    0 * * * * python /usr/local/bin/Throughput.py  -d http://x.x.x.x/files/ -u http://x.x.x.x -f <path>/results.csv
 
 
 COPYING

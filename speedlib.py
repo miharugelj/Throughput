@@ -24,9 +24,7 @@ import Queue
 import timeit
 import pycurl
 import xml.etree.cElementTree as ET
-from datetime import datetime
 from cStringIO import StringIO
-from urlparse import urlparse
 from urllib import urlencode
 
 
@@ -221,13 +219,14 @@ class Ping:
 
 class Throughput:
 
-    def __init__(self, id=None, dl=None, ul=None, maxThreads=3, timeout=20,  outputFile='results'):
+    def __init__(self, id=None, dl=None, ul=None, maxThreads=3, timeout=20,  outputFile='results.csv', noUploadResults=True):
         self.id = id
         self.dl = dl
         self.ul = ul
         self.maxThreads = maxThreads
         self.timeout = timeout
         self.outputFile = outputFile
+        self.noUploadResults = noUploadResults
 
 
     def getServersInfo(self):
@@ -288,6 +287,49 @@ class Throughput:
             return serverInfo
         else:
             return elements
+
+
+    def getClientInfo(self):
+        """
+        Get client info (ip address, client ISP, ...)
+        """
+
+        clientInfo = {}
+        url = 'https://www.speedtest.net/speedtest-config.php'
+
+        buf = StringIO()
+        curl = pycurl.Curl()
+        curl.setopt(pycurl.URL, url)
+        curl.setopt(pycurl.NOSIGNAL, 1)
+        curl.setopt(pycurl.CONNECTTIMEOUT, 5)
+        curl.setopt(pycurl.TIMEOUT, 10)
+        curl.setopt(pycurl.FAILONERROR, True)
+        curl.setopt(pycurl.FOLLOWLOCATION, True)
+        curl.setopt(pycurl.WRITEFUNCTION, buf.write)
+
+        try:
+            curl.perform()
+        except pycurl.error, e:
+            return None
+
+        if curl.getinfo(curl.RESPONSE_CODE) != 200:
+            curl.close()
+            return None
+        else:
+            curl.close()
+
+        try:
+            root = ET.fromstring(buf.getvalue())
+            client = root.find('client').attrib
+
+            clientInfo['ip_address'] = client['ip']
+            clientInfo['isp'] = client['isp']
+            clientInfo['lon'] = client['lon']
+            clientInfo['lat'] = client['lat']
+        except SyntaxError:
+            return None
+
+        return clientInfo
 
 
     class FileDL(threading.Thread):
@@ -492,29 +534,56 @@ class Throughput:
                 file.write('Timestamp,DL_server,UL_server,Avg_RTT_(ms),Min_RTT_(ms),Max_RTT_(ms),Loss_(%),'
                            'DL_speed_(Mbit/s),UL_speed_(Mbit/s)\n')
 
-            file.write(datetime.now().strftime("%Y-%m-%d_%H:%M:%S")+',')
-            file.write(urlparse(results['dl_url']).netloc+',')
-            file.write(urlparse(results['ul_url']).netloc+',')
+            file.write(results['timestamp']+',')
+            file.write(results['dl_hostname']+',')
+            file.write(results['ul_hostname']+',')
 
-            if results['RTT']['avg_rtt'] is not None:
-                file.write(str(round(results['RTT']['avg_rtt'], 3))+',')
-                file.write(str(round(results['RTT']['min_rtt'], 3))+',')
-                file.write(str(round(results['RTT']['max_rtt'], 3))+',')
-                file.write(str(results['RTT']['percent_lost'])+',')
+            if results['avg_rtt_ms'] is not None:
+                file.write(str(round(results['avg_rtt_ms'], 3))+',')
+                file.write(str(round(results['min_rtt_ms'], 3))+',')
+                file.write(str(round(results['max_rtt_ms'], 3))+',')
+                file.write(str(results['percent_lost'])+',')
             else:
                 file.write('0'+',')
                 file.write('0'+',')
                 file.write('0'+',')
-                file.write(str(round(results['RTT']['percent_lost']))+',')
+                file.write(str(round(results['percent_lost']))+',')
 
-            if results['dl_speed'] is not None:
-                file.write(str(round(results['dl_speed']/1000000, 3))+',')
+            if results['dl_speed_kbps'] is not None:
+                file.write(str(round(results['dl_speed_kbps']/1000, 3))+',')
             else:
                 file.write('0'+',')
 
-            if results['ul_speed'] is not None:
-                file.write(str(round(results['ul_speed']/1000000, 3)))
+            if results['ul_speed_kbps'] is not None:
+                file.write(str(round(results['ul_speed_kbps']/1000, 3)))
             else:
                 file.write('0')
 
             file.write('\n')
+
+
+    def createXML(self, file, results):
+        root = ET.Element('root')
+        clientInfo = ET.SubElement(root, 'client')
+        clientInfo.set('timestamp', results['timestamp'])
+        clientInfo.set('hash', results['hash'])
+        clientInfo.set('ip_address', results['ip_address'] if 'ip_address' in results else str(None))
+        clientInfo.set('isp', results['isp'] if 'isp' in results else str(None))
+        clientInfo.set('lat', results['lat'] if 'lat' in results else str(None))
+        clientInfo.set('lon', results['lon'] if 'lon' in results else str(None))
+
+        pingInfo = ET.SubElement(root, 'ping')
+        pingInfo.set('avg_rtt_ms', str(results['avg_rtt_ms']) if results['avg_rtt_ms'] is not None else str('0'))
+        pingInfo.set('min_rtt_ms', str(results['min_rtt_ms']) if results['min_rtt_ms'] is not None else str('0'))
+        pingInfo.set('max_rtt_ms', str(results['max_rtt_ms']) if results['max_rtt_ms'] is not None else str('0'))
+        pingInfo.set('percent_loss', str(results['percent_lost']))
+        pingInfo.set('target', results['dl_hostname'])
+
+        speedInfo = ET.SubElement(root, 'speed')
+        speedInfo.set('dl_speed_kbps', str(results['dl_speed_kbps']) if results['dl_speed_kbps'] is not None else str('0'))
+        speedInfo.set('ul_speed_kbps', str(results['ul_speed_kbps']) if results['ul_speed_kbps'] is not None else str('0'))
+        speedInfo.set('dl_hostname', results['dl_hostname'])
+        speedInfo.set('ul_hostname', results['ul_hostname'])
+
+        tree = ET.ElementTree(root)
+        tree.write(file, encoding="UTF-8")
