@@ -76,8 +76,8 @@ my @results=split(',',$fileoutput);
 print Dumper(@results) if $debug;
 
 my $datetime=$results[0];
-my $dlspeed=$results[7];
-my $ulspeed=$results[8];
+my $dlspeed=$results[7] || -1;
+my $ulspeed=$results[8] || -1;
 chomp($ulspeed); #remove trailing newline
 
 
